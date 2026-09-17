@@ -211,17 +211,31 @@ public class DefaultCatalogUserApi implements CatalogUserApi {
         try {
             VersionedCatalog versionedCatalog = catalogService.getFullCatalog(false, true, internalTenantContext);
 
-            //clone the catalog just to be safe, since the validation process adds the catalog to be validated to the versionedCatalog
-            final ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            final ObjectOutput out = new ObjectOutputStream(bos);
-            out.writeObject(versionedCatalog);
-            final ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
-            final ObjectInputStream in = new ObjectInputStream(bis);
-            versionedCatalog = (VersionedCatalog) in.readObject();
-
+            // Modified by Rezliant AI, 2026-09-17 19:20:41 GMT, Replaced unsafe ObjectInputStream deserialization with safe catalog cloning
             if (versionedCatalog == null) {
                 versionedCatalog = new DefaultVersionedCatalog();
+            } else {
+                // Create a clean copy by reconstructing from existing catalog data
+                final DefaultVersionedCatalog clonedCatalog = new DefaultVersionedCatalog();
+                if (versionedCatalog instanceof DefaultVersionedCatalog) {
+                    for (final StaticCatalog version : ((DefaultVersionedCatalog) versionedCatalog).getVersions()) {
+                        clonedCatalog.add((StandaloneCatalog) version);
+                    }
+                }
+                versionedCatalog = clonedCatalog;
             }
+            // Original Code
+            //clone the catalog just to be safe, since the validation process adds the catalog to be validated to the versionedCatalog
+            //final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            //final ObjectOutput out = new ObjectOutputStream(bos);
+            //out.writeObject(versionedCatalog);
+            //final ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
+            //final ObjectInputStream in = new ObjectInputStream(bis);
+            //versionedCatalog = (VersionedCatalog) in.readObject();
+
+            //if (versionedCatalog == null) {
+            //    versionedCatalog = new DefaultVersionedCatalog();
+            //}
             // Validation purpose:  Will throw if bad XML or catalog validation fails
             final InputStream stream = new ByteArrayInputStream(catalogXML.getBytes(StandardCharsets.UTF_8));
             final StaticCatalog newCatalogVersion = XMLLoader.getObjectFromStream(stream, StandaloneCatalog.class);
@@ -240,7 +254,7 @@ public class DefaultCatalogUserApi implements CatalogUserApi {
             errors.addAll(e.getErrors());
         } catch (final JAXBException e) {
             errors.add(new ValidationError(e.getLinkedException() != null ? e.getLinkedException().getMessage() : e.getMessage(), DefaultVersionedCatalog.class, ""));
-        } catch (final TransformerException | IOException | SAXException | ClassNotFoundException e) {
+        } catch (final TransformerException | IOException | SAXException e) {
             throw new IllegalStateException(e);
         }
         return errors;
