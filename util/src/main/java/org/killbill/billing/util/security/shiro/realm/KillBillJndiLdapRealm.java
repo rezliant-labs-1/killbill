@@ -69,7 +69,7 @@ public class KillBillJndiLdapRealm extends JndiLdapRealm {
     private final String searchBase;
     private final String groupSearchFilter;
     private final String groupNameId;
-    private final Map<String, Collection<String>> permissionsByGroup = new LinkedHashMap<>();
+    private final Map&lt;String, Collection&lt;String>> permissionsByGroup = new LinkedHashMap&lt;>();
     private final String dnSearchFilter;
 
     @Inject
@@ -112,7 +112,7 @@ public class KillBillJndiLdapRealm extends JndiLdapRealm {
             for (final Section section : ini.getSections()) {
                 for (final String rawRole : section.keySet()) {
                     // Un-escape manually = (required if the role name is a DN)
-                    final Collection<String> permissions = Strings.split(section.get(rawRole), ",");
+                    final Collection&lt;String> permissions = Strings.split(section.get(rawRole), ",");
                     final String role = rawRole.replace("\\=", "=");
                     permissionsByGroup.put(role, permissions);
                 }
@@ -130,12 +130,14 @@ public class KillBillJndiLdapRealm extends JndiLdapRealm {
         }
     }
 
+    // Modified by Rezliant AI, 2026-09-17 17:46:36 GMT, Escape LDAP special characters to prevent injection
     private String findUserDN(final String userName, final LdapContextFactory ldapContextFactory) {
         LdapContext systemLdapCtx = null;
         try {
             systemLdapCtx = ldapContextFactory.getSystemLdapContext();
-            final NamingEnumeration<SearchResult> usersFound = systemLdapCtx.search(searchBase,
-                                                                                    dnSearchFilter.replace(USERDN_SUBSTITUTION_TOKEN, userName),
+            final String sanitizedUserName = escapeLdapSearchFilter(userName);
+            final NamingEnumeration&lt;SearchResult> usersFound = systemLdapCtx.search(searchBase,
+                                                                                    dnSearchFilter.replace(USERDN_SUBSTITUTION_TOKEN, sanitizedUserName),
                                                                                     SUBTREE_SCOPE);
             return usersFound.hasMore() ? usersFound.next().getNameInNamespace() : null;
         } catch (final AuthenticationException ex) {
@@ -149,18 +151,49 @@ public class KillBillJndiLdapRealm extends JndiLdapRealm {
         }
     }
 
+    // Modified by Rezliant AI, 2026-09-17 17:46:36 GMT, Helper method to escape LDAP filter special characters per RFC 4515
+    private String escapeLdapSearchFilter(final String input) {
+        if (input == null) {
+            return null;
+        }
+        final StringBuilder sb = new StringBuilder();
+        for (int i = 0; i &lt; input.length(); i++) {
+            final char c = input.charAt(i);
+            switch (c) {
+                case '\\':
+                    sb.append("\\5c");
+                    break;
+                case '*':
+                    sb.append("\\2a");
+                    break;
+                case '(':
+                    sb.append("\\28");
+                    break;
+                case ')':
+                    sb.append("\\29");
+                    break;
+                case '\u0000':
+                    sb.append("\\00");
+                    break;
+                default:
+                    sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
     @Override
     protected AuthorizationInfo queryForAuthorizationInfo(final PrincipalCollection principals, final LdapContextFactory ldapContextFactory) throws NamingException {
-        final Set<String> userGroups = findLDAPGroupsForUser(principals, ldapContextFactory);
+        final Set&lt;String> userGroups = findLDAPGroupsForUser(principals, ldapContextFactory);
 
         final SimpleAuthorizationInfo simpleAuthorizationInfo = new SimpleAuthorizationInfo(userGroups);
-        final Set<String> stringPermissions = groupsPermissions(userGroups);
+        final Set&lt;String> stringPermissions = groupsPermissions(userGroups);
         simpleAuthorizationInfo.setStringPermissions(stringPermissions);
 
         return simpleAuthorizationInfo;
     }
 
-    private Set<String> findLDAPGroupsForUser(final PrincipalCollection principals, final LdapContextFactory ldapContextFactory) throws NamingException {
+    private Set&lt;String> findLDAPGroupsForUser(final PrincipalCollection principals, final LdapContextFactory ldapContextFactory) throws NamingException {
         final String username = (String) getAvailablePrincipal(principals);
 
         LdapContext systemLdapCtx = null;
@@ -175,8 +208,8 @@ public class KillBillJndiLdapRealm extends JndiLdapRealm {
         }
     }
 
-    private Set<String> findLDAPGroupsForUser(final String userName, final LdapContext ldapCtx) throws NamingException {
-        final NamingEnumeration<SearchResult> foundGroups = ldapCtx.search(searchBase,
+    private Set&lt;String> findLDAPGroupsForUser(final String userName, final LdapContext ldapCtx) throws NamingException {
+        final NamingEnumeration&lt;SearchResult> foundGroups = ldapCtx.search(searchBase,
                                                                            groupSearchFilter.replace(USERDN_SUBSTITUTION_TOKEN, userName),
                                                                            SUBTREE_SCOPE);
 
@@ -188,16 +221,16 @@ public class KillBillJndiLdapRealm extends JndiLdapRealm {
         final SearchResult result = foundGroups.next();
 
         // Extract the name of all the groups
-        final Collection<String> finalGroupsNames = extractGroupNamesFromSearchResult(result);
+        final Collection&lt;String> finalGroupsNames = extractGroupNamesFromSearchResult(result);
 
-        return new HashSet<>(finalGroupsNames);
+        return new HashSet&lt;>(finalGroupsNames);
     }
 
     @VisibleForTesting
-    Collection<String> extractGroupNamesFromSearchResult(final SearchResult searchResult) {
+    Collection&lt;String> extractGroupNamesFromSearchResult(final SearchResult searchResult) {
         // Extract the group name from the attribute
-        final Iterator<? extends Attribute> attributesIterator = searchResult.getAttributes().getAll().asIterator();
-        final List<String> attributes = new ArrayList<>();
+        final Iterator&lt;? extends Attribute> attributesIterator = searchResult.getAttributes().getAll().asIterator();
+        final List&lt;String> attributes = new ArrayList&lt;>();
         Iterators.toStream(attributesIterator).filter(attribute -> groupNameId.equalsIgnoreCase(attribute.getID())).forEach(attr -> {
             try {
                 if(attr.get() instanceof Collection) {
@@ -212,10 +245,10 @@ public class KillBillJndiLdapRealm extends JndiLdapRealm {
         return attributes;
     }
 
-    private Set<String> groupsPermissions(final Set<String> groups) {
-        final Set<String> permissions = new HashSet<>();
+    private Set&lt;String> groupsPermissions(final Set&lt;String> groups) {
+        final Set&lt;String> permissions = new HashSet&lt;>();
         for (final String group : groups) {
-            final Collection<String> permissionsForGroup = permissionsByGroup.get(group);
+            final Collection&lt;String> permissionsForGroup = permissionsByGroup.get(group);
             if (permissionsForGroup != null) {
                 permissions.addAll(permissionsForGroup);
             }
@@ -224,7 +257,7 @@ public class KillBillJndiLdapRealm extends JndiLdapRealm {
     }
 
     @VisibleForTesting
-    public Map<String, Collection<String>> getPermissionsByGroup() {
+    public Map&lt;String, Collection&lt;String>> getPermissionsByGroup() {
         return permissionsByGroup;
     }
 }
