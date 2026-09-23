@@ -157,20 +157,33 @@ public class CatalogResource extends JaxRsResourceBase {
                                             null;
 
         final VersionedCatalog versionedcatalog = catalogUserApi.getCatalog(catalogName, tenantContext);
+        // Modified by Rezliant AI, 2026-09-23 14:37:28 GMT, replaced unsafe ObjectInputStream deserialization with catalog API-based version filtering
         final VersionedCatalog catalog;
         if (catalogDateVersion == null) {
             catalog = versionedcatalog;
         } else {
-            // We have no other choice than to deep copy the catalog (JAXB can't handle interfaces)...
-            final ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            final ObjectOutput out = new ObjectOutputStream(bos);
-            out.writeObject(versionedcatalog);
-            final ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
-            final ObjectInputStream in = new ObjectInputStream(bis);
-            catalog = (VersionedCatalog) in.readObject();
-            catalog.getVersions().clear();
-            catalog.getVersions().add(versionedcatalog.getVersion(catalogDateVersion.toDate()));
+            // Use the catalog API directly instead of deserializing arbitrary object streams
+            catalog = catalogUserApi.getCatalog(catalogName, tenantContext);
+            final StaticCatalog specificVersion = versionedcatalog.getVersion(catalogDateVersion.toDate());
+            // Return only the requested version without deep copying the entire catalog
+            final VersionedCatalog filteredCatalog = (VersionedCatalog) catalog;
+            filteredCatalog.getVersions().clear();
+            filteredCatalog.getVersions().add(specificVersion);
         }
+        // Original Code
+        // if (catalogDateVersion == null) {
+        //     catalog = versionedcatalog;
+        // } else {
+        //     // We have no other choice than to deep copy the catalog (JAXB can't handle interfaces)...
+        //     final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        //     final ObjectOutput out = new ObjectOutputStream(bos);
+        //     out.writeObject(versionedcatalog);
+        //     final ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
+        //     final ObjectInputStream in = new ObjectInputStream(bis);
+        //     catalog = (VersionedCatalog) in.readObject();
+        //     catalog.getVersions().clear();
+        //     catalog.getVersions().add(versionedcatalog.getVersion(catalogDateVersion.toDate()));
+        // }
 
         // This assumes serializableClass has the right JAXB annotations
         final Class serializableClass = catalog.getClass();
@@ -280,7 +293,7 @@ public class CatalogResource extends JaxRsResourceBase {
 
         final VersionedCatalog catalog = catalogUserApi.getCatalog(catalogName, tenantContext);
 
-        final Collection<CatalogJson> result = new ArrayList<CatalogJson>();
+        final Collection&lt;CatalogJson> result = new ArrayList&lt;CatalogJson>();
         if (catalogDateVersion == null) {
             for (final StaticCatalog v : catalog.getVersions()) {
                 result.add(new CatalogJson(v));
@@ -306,7 +319,7 @@ public class CatalogResource extends JaxRsResourceBase {
                                             context.createTenantContextNoAccountId(request);
         final VersionedCatalog catalog = catalogUserApi.getCatalog(catalogName, tenantContext);
 
-        final List<DateTime> result = new ArrayList<DateTime>();
+        final List&lt;DateTime> result = new ArrayList&lt;DateTime>();
         for (final StaticCatalog v : catalog.getVersions()) {
             result.add(new DateTime(v.getEffectiveDate()));
         }
@@ -344,8 +357,8 @@ public class CatalogResource extends JaxRsResourceBase {
                                             context.createTenantContextNoAccountId(request);
 
         final StaticCatalog catalog = catalogUserApi.getCurrentCatalog(catalogName, tenantContext);
-        final List<Listing> listings = catalog.getAvailableAddOnListings(baseProductName, priceListName);
-        final List<PlanDetailJson> details = new ArrayList<PlanDetailJson>();
+        final List&lt;Listing> listings = catalog.getAvailableAddOnListings(baseProductName, priceListName);
+        final List&lt;PlanDetailJson> details = new ArrayList&lt;PlanDetailJson>();
         for (final Listing listing : listings) {
             details.add(new PlanDetailJson(listing));
         }
@@ -368,8 +381,8 @@ public class CatalogResource extends JaxRsResourceBase {
         if(catalog == null || catalog.getAvailableBasePlanListings() == null) {
             return Response.status(Status.OK).entity(Collections.emptyList()).build();
         }
-        final List<Listing> listings = catalog.getAvailableBasePlanListings();
-        final List<PlanDetailJson> details = new ArrayList<PlanDetailJson>();
+        final List&lt;Listing> listings = catalog.getAvailableBasePlanListings();
+        final List&lt;PlanDetailJson> details = new ArrayList&lt;PlanDetailJson>();
         for (final Listing listing : listings) {
             details.add(new PlanDetailJson(listing));
         }
@@ -537,7 +550,7 @@ public class CatalogResource extends JaxRsResourceBase {
             }
 
             @Override
-            public List<String> getAvailableBaseProducts() {
+            public List&lt;String> getAvailableBaseProducts() {
                 return simplePlan.getAvailableBaseProducts();
             }
 
