@@ -54,7 +54,7 @@ public class CallbackServlet extends HttpServlet {
     private static final long DELAY = 60000;
 
     // Cross tenants (for now)
-    private final Collection<ExtBusEventType> nextExpectedEvent = new Stack<ExtBusEventType>();
+    private final Collection&lt;ExtBusEventType> nextExpectedEvent = new Stack&lt;ExtBusEventType>();
 
     private boolean isListenerFailed = false;
     private String listenerFailedMsg;
@@ -76,7 +76,11 @@ public class CallbackServlet extends HttpServlet {
         response.setStatus(HttpServletResponse.SC_OK);
 
         final NotificationJson notification = objectMapper.readValue(body, NotificationJson.class);
-        log.info("Got notification: {}", notification);
+        // Modified by Rezliant AI, 2026-09-23 15:09:42 GMT, sanitize notification to prevent CRLF injection in logs
+        final String sanitizedNotification = notification.toString().replace("\n", "\\n").replace("\r", "\\r");
+        log.info("Got notification: {}", sanitizedNotification);
+        // Original Code
+        //log.info("Got notification: {}", notification);
         assertEqualsNicely(notification.getEventType() == null ? null : ExtBusEventType.valueOf(notification.getEventType()));
         notifyIfStackEmpty();
     }
@@ -173,7 +177,7 @@ public class CallbackServlet extends HttpServlet {
 
     private synchronized void assertEqualsNicely(final ExtBusEventType received) {
         boolean foundIt = false;
-        final Iterator<ExtBusEventType> it = nextExpectedEvent.iterator();
+        final Iterator&lt;ExtBusEventType> it = nextExpectedEvent.iterator();
         while (it.hasNext()) {
             final ExtBusEventType ev = it.next();
             if (ev == received) {
