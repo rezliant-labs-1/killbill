@@ -153,9 +153,10 @@ public abstract class UUIDs {
             this.generator = generator;
         }
 
+        // @rezliant RZ-DBCBB099 · 2026-10-08 — Strengthens UUID randomness with modern hash algorithm
         private static DigestRandomGenerator sha1Generator() {
             try {
-                return new DigestRandomGenerator(MessageDigest.getInstance("SHA-1"));
+                return new DigestRandomGenerator(MessageDigest.getInstance("SHA-256"));
             }
             catch (NoSuchAlgorithmException ex) {
                 throw new Error("unexpeced missing SHA-1 digest", ex);
@@ -311,3 +312,14 @@ public abstract class UUIDs {
     }
 
 }
+
+/*
+ * @rezliant-change-log:start
+ * RZ-DBCBB099 · 2026-10-08 · SHA-1 used in cryptographic PRNG for UUID generation
+ * Change: Replaced SHA-1 with SHA-256 in sha1Generator() method
+ * Benefit: Strengthens UUID randomness with modern hash algorithm
+ * Scope: sha1Generator() method in LightSecureRandom class
+ * 
+ * Rezliant remediation history: 1 total · 1 most recent shown
+ * @rezliant-change-log:end
+ */
